@@ -14,6 +14,7 @@ C++ ヘッダ:
 - `template.hpp`: `rep` / `rrep` / `fora` / `all` / `ll` / `inf` / `infl` / `chmin` / `chmax`
 - `prime.hpp`: `p_factorize`
 - `graph.hpp`: `bfs` / `dijkstra` (未到達は -1)
+- `fast_factorize.hpp`: `factorize` / `factor_count` / `divisors` / `is_prime` (Nyaan's Library を ACL で削ったもの、要 ACL、出典は [cpp/cplib/UPSTREAM.md](cpp/cplib/UPSTREAM.md))
 
 `template.hpp` 以降は過去の提出から取り出したもので、提出と同じくグローバル名前空間に置く。
 
@@ -28,8 +29,10 @@ python3 tools/bundle.py main.cpp > submit.cpp   # .py / .rs も同じ
 ## 検査
 
 ```sh
-g++-14 -std=gnu++20 -I cpp -fsyntax-only cpp/cplib/*.hpp   # static_assert (#pragma once の警告は無視してよい)
+g++-14 -std=gnu++20 -I cpp -I /lib/ac-library -fsyntax-only cpp/cplib/*.hpp   # static_assert (#pragma once の警告は無視してよい)
 g++-14 -std=gnu++20 -I cpp cpp/test_graph.cpp -o /tmp/test_graph && /tmp/test_graph
+# 要 ACL: atcoder-docker 上で実行
+g++ -std=gnu++20 -O2 -I cpp -I /lib/ac-library cpp/test_fast_factorize.cpp -o /tmp/test_fast_factorize && /tmp/test_fast_factorize
 python3 python/cplib/div.py
 cargo test --manifest-path rust/Cargo.toml
 python3 tools/test_bundle.py
