@@ -29,13 +29,12 @@ python3 tools/bundle.py main.cpp > submit.cpp   # .py / .rs も同じ
 ## 検査
 
 ```sh
-g++-14 -std=gnu++20 -I cpp -I /lib/ac-library -fsyntax-only cpp/cplib/*.hpp   # static_assert (#pragma once の警告は無視してよい)
-g++-14 -std=gnu++20 -I cpp cpp/test_graph.cpp -o /tmp/test_graph && /tmp/test_graph
-# 要 ACL: atcoder-docker 上で実行
-g++ -std=gnu++20 -O2 -I cpp -I /lib/ac-library cpp/test_fast_factorize.cpp -o /tmp/test_fast_factorize && /tmp/test_fast_factorize
+g++ -std=gnu++23 -I cpp -I /lib/ac-library -fsyntax-only cpp/cplib/*.hpp   # static_assert (#pragma once の警告は無視してよい)
+g++ -std=gnu++23 -I cpp cpp/test_graph.cpp -o /tmp/test_graph && /tmp/test_graph
+g++ -std=gnu++23 -O2 -I cpp -I /lib/ac-library cpp/test_fast_factorize.cpp -o /tmp/test_fast_factorize && /tmp/test_fast_factorize
 python3 python/cplib/div.py
 cargo test --manifest-path rust/Cargo.toml
 python3 tools/test_bundle.py
 ```
 
-atcoder-docker (`ghcr.io/carbon-nil/atcoder-docker:3.1.1-light`) 上で動く。
+atcoder-docker (`ghcr.io/carbon-nil/atcoder-docker:4.0.2-light`、AtCoder と同じ GCC 15.2.0) 上で実行する。

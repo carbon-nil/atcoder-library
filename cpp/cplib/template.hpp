@@ -1,6 +1,8 @@
 #pragma once
 
-#include <climits>
+// all などのマクロが標準ヘッダの views::all(...) を書き換えないよう、先に標準ヘッダをすべて読む
+// (gnu++23 では <queue> なども <ranges> を読む)
+#include <bits/stdc++.h>
 
 // 修飾なしで使う共通定義なのでグローバル名前空間に置く
 #define rep(i,a,b) for(int i=a;i<b;i++)
