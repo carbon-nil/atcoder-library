@@ -17,6 +17,12 @@ def write(root: Path, name: str, source: str) -> None:
     path.write_text(source)
 
 
+def check_blank_lines(output: str) -> None:
+    assert "\n\n\n" not in output
+    assert not output.startswith("\n")
+    assert output.endswith("\n") and not output.endswith("\n\n")
+
+
 def run(source: str, suffix: str, directory: Path) -> None:
     tool = {".cpp": "g++", ".py": "python3", ".rs": "rustc"}[suffix]
     executable = shutil.which(tool)
@@ -46,9 +52,11 @@ def main() -> None:
         work = Path(temporary) / "run"
         work.mkdir()
         write(root, "cpp/cplib/used.hpp", """#pragma once
+
 inline int used_marker() { return -4; }
 """)
         write(root, "cpp/cplib/div.hpp", """#pragma once
+
 #include "cplib/used.hpp"
 inline int div_marker() { return used_marker(); }
 """)
@@ -69,7 +77,9 @@ from cplib.div import div_marker
 print(div_marker(), -3)
 """
         write(root, "rust/src/lib.rs", "pub mod div;\npub mod used;\npub mod unused;\n")
-        write(root, "rust/src/div.rs", """mod nested;
+        write(root, "rust/src/div.rs", """
+
+mod nested;
 pub fn div_marker() -> i32 { nested::value() }
 """)
         write(root, "rust/src/div/nested.rs",
@@ -80,7 +90,8 @@ pub fn div_marker() -> i32 { nested::value() }
         fixtures = [(".cpp", bundle_cpp, cpp), (".py", bundle_python, python),
                     (".rs", bundle_rust, rust)]
         for suffix, bundler, source in fixtures:
-            output = bundler(source, root)
+            output = bundler("\n \n\n" + source + "\n \n\n", root)
+            check_blank_lines(output)
             assert "div_marker" in output and "used_marker" in output
             assert "unused_marker" not in output
             if suffix == ".cpp":
@@ -89,6 +100,9 @@ pub fn div_marker() -> i32 { nested::value() }
                 assert "#include <iostream>" in output
             if suffix == ".py":
                 assert "package_marker" in output
+            if suffix == ".rs":
+                assert "mod unused" not in output
+                assert "{\n\n" not in output and "\n\n}" not in output
             print(f"PASS {suffix} dependency closure")
             run(output, suffix, work)
 
@@ -107,6 +121,10 @@ pub fn div_marker() -> i32 { nested::value() }
         assert "nested_marker" in nested and "unused_marker" not in nested
         run(nested, ".py", work)
 
+        literal = 'text = """first\n\n\nlast"""\nassert text == "first\\n\\n\\nlast"\n'
+        exec(bundle_python(literal, root), {})
+        print("PASS Python multiline string preservation")
+
         real = {
             ".cpp": """#include <iostream>
 #include <cplib/div.hpp>
@@ -124,6 +142,7 @@ int main() { std::cout << cplib::floor_div(-7, 2) << ' '
             result = subprocess.run([sys.executable, str(ROOT / "tools/bundle.py"), str(path)],
                                     check=True, capture_output=True, text=True, cwd=work)
             assert "floor_div" in result.stdout and "ceil_div" in result.stdout
+            check_blank_lines(result.stdout)
             print(f"PASS {suffix} real library CLI smoke")
             run(result.stdout, suffix, work)
         result = subprocess.run([sys.executable, str(ROOT / "tools/bundle.py"), "bad.txt"],

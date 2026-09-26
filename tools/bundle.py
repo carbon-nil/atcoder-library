@@ -1,7 +1,25 @@
 import ast
+import io
 from pathlib import Path
 import re
 import sys
+import tokenize
+
+
+def collapse_blank_lines(text: str, python: bool = False) -> str:
+    protected: set[int] = set()
+    if python:
+        for token in tokenize.generate_tokens(io.StringIO(text).readline):
+            if token.type == tokenize.STRING:
+                protected.update(range(token.start[0], token.end[0] + 1))
+    lines: list[str] = []
+    for number, line in enumerate(text.splitlines(keepends=True), 1):
+        if number not in protected and not line.strip():
+            if lines and lines[-1].strip():
+                lines.append("\n")
+        else:
+            lines.append(line)
+    return "".join(lines).rstrip("\r\n") + "\n"
 
 
 # ponytail: No Python relative library imports or leading solution future import,
@@ -15,13 +33,14 @@ def bundle_cpp(source: str, root: Path) -> str:
             if path in seen:
                 return ""
             seen.add(path)
-            body = re.sub(r"^\s*#pragma once[^\n]*$", "", path.read_text(), flags=re.M)
-            return expand(body) + "\n"
+            body = re.sub(r"^[ \t]*#pragma once[^\n]*(?:\n|$)", "", path.read_text(), flags=re.M)
+            body = expand(body)
+            return body if not body or body.endswith("\n") else body + "\n"
 
-        return re.sub(r'^\s*#\s*include\s*[<"](cplib/[^>"\n]+)[>"][^\n]*$',
+        return re.sub(r'^[ \t]*#[ \t]*include[ \t]*[<"](cplib/[^>"\n]+)[>"][^\n]*(?:\n|$)',
                       include, text, flags=re.M)
 
-    return expand(source)
+    return collapse_blank_lines(expand(source))
 
 
 def bundle_python(source: str, root: Path) -> str:
@@ -59,7 +78,7 @@ def bundle_python(source: str, root: Path) -> str:
                             add(child)
 
     scan(source)
-    return """import importlib.abc as _bundle_abc
+    result = """import importlib.abc as _bundle_abc
 import importlib.util as _bundle_util
 import sys as _bundle_sys
 
@@ -80,7 +99,8 @@ class _BundleLoader(_bundle_abc.MetaPathFinder, _bundle_abc.Loader):
 
 _bundle_sys.meta_path.insert(0, _BundleLoader())
 
-""" + source
+""" + source.lstrip("\r\n")
+    return collapse_blank_lines(result, python=True)
 
 
 def bundle_rust(source: str, root: Path) -> str:
@@ -126,7 +146,7 @@ def bundle_rust(source: str, root: Path) -> str:
             path = directory / (name + ".rs")
             if not path.is_file():
                 path = directory / name / "mod.rs"
-            body = expand(path.read_text(), directory / name)
+            body = expand(path.read_text(), directory / name).strip()
             return match[1] + name + " {\n" + body + "\n}"
 
         return declaration.sub(module, text)
@@ -143,11 +163,13 @@ def bundle_rust(source: str, root: Path) -> str:
         name = match[2]
         if name not in needed:
             return ""
-        return match[1] + name + " {" + expanded[name] + "}"
+        return match[1] + name + " {" + expanded[name] + "}" + ("\n" if match[0].endswith("\n") else "")
 
-    body = declaration.sub(top_module, library)
+    top_declaration = re.compile(
+        r"(?:^[ \t]*)?" + declaration.pattern + r"(?:[ \t]*(?:\n|$))?", re.M)
+    body = top_declaration.sub(top_module, library)
     body = re.sub(r"\bcrate\s*::", "crate::cplib::", body)
-    return source + "\n\npub mod cplib {\n" + body + "\n}\n"
+    return collapse_blank_lines(source.rstrip() + "\n\npub mod cplib {\n" + body.strip() + "\n}\n")
 
 
 def main() -> None:
